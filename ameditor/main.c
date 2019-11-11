@@ -252,11 +252,22 @@ int main(int argc, char *argv[])
                     argv++;
                     if (!argc)
                     {
-                        fprintf(stderr, "ERROR: No argument supplied for '-l' option.\n");
+                        fprintf(stderr, "ERROR: No argument supplied for '-c' option.\n");
                         want_usage = 1;
                         goto bail;
                     }
                     options->count = atoi(argv[0]);
+                    break;
+                case 'p':
+                    argc--;
+                    argv++;
+                    if (!argc)
+                    {
+                        fprintf(stderr, "ERROR: No argument supplied for '-p' option.\n");
+                        want_usage = 1;
+                        goto bail;
+                    }
+                    strncpy(options->parent_tag, argv[0], 128);
                     break;
                 case 'n':
                     argc--;
@@ -365,6 +376,17 @@ int main(int argc, char *argv[])
                         goto bail;
                     }
                     options->resource_id = atoi(argv[0]);
+                    break;
+                case 'p':
+                    argc--;
+                    argv++;
+                    if (!argc)
+                    {
+                        fprintf(stderr, "ERROR: No argument supplied for '-p' option.\n");
+                        want_usage = 1;
+                        goto bail;
+                    }
+                    strncpy(options->input_file, argv[0], 128);
                     break;
                 case 'i':
                     argc--;

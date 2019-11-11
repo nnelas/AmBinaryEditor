@@ -14,12 +14,14 @@ $ make release
 ## Usage
 - Basics
 ```
--a/--add    - define type of new tag
--p/--parent - define parent of that tag
--d/--deep   - how many nodes you wanna skip before inserting
--c          - how many nodes you wanna skip after ending insertion
--i          - input AndroidManifest.xml
--o          - output AndroidManifest.xml
+-p/--parent     - define parent of that tag
+-d/--deep       - how many nodes you wanna skip before inserting
+-c/--count      - how many nodes you wanna skip after ending insertion
+-n/--name       - attribute name (eg.: android:theme - theme, android:name - name)
+-t/--type       - type of attribute value (eg.: strings = 3)
+-v/--value      - specific value of that attribute
+-i/--input      - input AndroidManifest.xml
+-o/--output     - output AndroidManifest.xml
 ```
 
 - Activities

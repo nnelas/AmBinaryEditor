@@ -28,6 +28,7 @@ typedef struct _OPTIONS
     uint32_t deep;
     uint32_t count;
     char new_tag_name[128];
+    char parent_tag[128];
 
     uint32_t attr_type;
     char attr_name[128];

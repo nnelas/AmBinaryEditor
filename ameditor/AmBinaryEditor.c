@@ -346,7 +346,7 @@ static int HandleResourceChunk(RESOURCEID_CHUNK * resourceid_chunk, uint32_t off
     return 0;
 }
 
-static XMLCONTENTCHUNK *FindTagStartChunk(PARSER *ap, char *name, uint32_t deep)
+static XMLCONTENTCHUNK *FindTagStartChunk(PARSER *ap, char *name, char *parent_tag, uint32_t deep)
 {
 	STRING_CHUNK *sc = ap->string_chunk;
 	XMLCONTENTCHUNK *root = ap->xmlcontent_chunk;
@@ -419,7 +419,7 @@ static int InitAttribute(PARSER *ap, ATTRIBUTE *attr, const char *name, uint32_t
 		}
 		else
 		{
-			fprintf(stderr, "value: '%s' is valid\n", value);
+			fprintf(stderr, "value: '%s' is invalid, did you added '@'?\n", value);
 			return -1;
 		}
 	}
@@ -435,7 +435,7 @@ static int InitAttribute(PARSER *ap, ATTRIBUTE *attr, const char *name, uint32_t
         }
         else
         {
-			fprintf(stderr, "value: '%s' is valid\n", value);
+			fprintf(stderr, "value: '%s' is invalid, did you added '?'?\n", value);
 			return -1;
         }
 	}
@@ -547,7 +547,7 @@ static int InitAttribute(PARSER *ap, ATTRIBUTE *attr, const char *name, uint32_t
 	return 0;
 }
 
-static int AddAttribute(PARSER *ap, char *tag_name, uint32_t deep, uint32_t attr_type, const char *attr_name,
+static int AddAttribute(PARSER *ap, char *tag_name, char *parent_tag, uint32_t deep, uint32_t attr_type, const char *attr_name,
     char *attr_value, uint32_t resource_id, int32_t *extra_size)
 {
     ATTRIBUTE *attr = NULL;
@@ -567,7 +567,7 @@ static int AddAttribute(PARSER *ap, char *tag_name, uint32_t deep, uint32_t attr
         return -1;
     }
 
-    target = FindTagStartChunk(ap, tag_name, deep);
+    target = FindTagStartChunk(ap, tag_name, parent_tag, deep);
     if (target == NULL)
     {
         return -1;
@@ -598,7 +598,7 @@ static int AddAttribute(PARSER *ap, char *tag_name, uint32_t deep, uint32_t attr
     return 0;
 }
 
-static int ModifyAttribute(PARSER *ap, char *tag_name, uint32_t deep, uint32_t attr_type, const char *attr_name,
+static int ModifyAttribute(PARSER *ap, char *tag_name, char *parent_tag, uint32_t deep, uint32_t attr_type, const char *attr_name,
     char *attr_value, uint32_t resource_id, int32_t *extra_size)
 {
     ATTRIBUTE *attr = NULL;
@@ -619,7 +619,7 @@ static int ModifyAttribute(PARSER *ap, char *tag_name, uint32_t deep, uint32_t a
         return -1;
     }
 
-    target = FindTagStartChunk(ap, tag_name, deep);
+    target = FindTagStartChunk(ap, tag_name, parent_tag, deep);
     if (target == NULL)
     {
         return -1;
@@ -646,7 +646,7 @@ static int ModifyAttribute(PARSER *ap, char *tag_name, uint32_t deep, uint32_t a
     return 0;
 }
 
-static int RemoveAttribute(PARSER *ap, char *tag_name, uint32_t deep, uint32_t attr_type, const char *attr_name,
+static int RemoveAttribute(PARSER *ap, char *tag_name, char *parent_tag, uint32_t deep, uint32_t attr_type, const char *attr_name,
     char *attr_value, uint32_t resource_id, int32_t *extra_size)
 {
     XMLCONTENTCHUNK *target = NULL;
@@ -658,7 +658,7 @@ static int RemoveAttribute(PARSER *ap, char *tag_name, uint32_t deep, uint32_t a
         return -1;
     }
 
-    target = FindTagStartChunk(ap, tag_name, deep);
+    target = FindTagStartChunk(ap, tag_name, parent_tag, deep);
     if (target == NULL)
     {
         return -1;
@@ -700,20 +700,20 @@ static int HandleAttribute(PARSER *ap, OPTIONS *options, int32_t *extra_size)
     switch (options->mode)
     {
     case MODE_ADD:
-        return AddAttribute(ap, options->tag_name, options->deep, options->attr_type, options->attr_name,
+        return AddAttribute(ap, options->tag_name, options->parent_tag, options->deep, options->attr_type, options->attr_name,
         options->attr_value, options->resource_id, extra_size);
     case MODE_MODIFY:
-        return ModifyAttribute(ap, options->tag_name, options->deep, options->attr_type, options->attr_name,
+        return ModifyAttribute(ap, options->tag_name, options->parent_tag, options->deep, options->attr_type, options->attr_name,
         options->attr_value, options->resource_id, extra_size);
     case MODE_REMOVE:
-        return RemoveAttribute(ap, options->tag_name, options->deep, options->attr_type, options->attr_name,
+        return RemoveAttribute(ap, options->tag_name, options->parent_tag, options->deep, options->attr_type, options->attr_name,
         options->attr_value, options->resource_id, extra_size);
     default:
         return -1;
     }
 }
 
-static int AddTagChunk(PARSER *ap, char *tag_name, uint32_t deep, uint32_t count, int32_t *extra_size)
+static int AddTagChunk(PARSER *ap, char *tag_name, char *parent_tag, uint32_t deep, uint32_t count, int32_t *extra_size)
 {
     STRING_CHUNK *sc = ap->string_chunk;
 	XMLCONTENTCHUNK *root = ap->xmlcontent_chunk;
@@ -733,8 +733,15 @@ static int AddTagChunk(PARSER *ap, char *tag_name, uint32_t deep, uint32_t count
 	{
         if (node->chunk_type == CHUNK_STARTTAG)
         {
-            parent = node;
-            deep--;
+            if (strcmp((const char *)sc->strings[node->start_tag_chunk->name], parent_tag) == 0)
+            {
+                deep--;
+                if (deep == 0)
+                {
+                    parent = node;
+                    break;
+                }
+            }
         }
         node = node->child;
 	}
@@ -791,7 +798,7 @@ static int AddTagChunk(PARSER *ap, char *tag_name, uint32_t deep, uint32_t count
 	return 0;
 }
 
-static int ModifyTagChunk(PARSER *ap, char *tag_name, uint32_t deep, const char *new_tag_name, int32_t *extra_size)
+static int ModifyTagChunk(PARSER *ap, char *tag_name, char *parent_tag, uint32_t deep, const char *new_tag_name, int32_t *extra_size)
 {
     XMLCONTENTCHUNK *target_start = NULL;
     uint32_t ori_name;
@@ -805,7 +812,7 @@ static int ModifyTagChunk(PARSER *ap, char *tag_name, uint32_t deep, const char 
         return -1;
     }
 
-	target_start = FindTagStartChunk(ap, tag_name, deep);
+	target_start = FindTagStartChunk(ap, tag_name, parent_tag, deep);
 	if (target_start == NULL)
 	{
         return -1;
@@ -842,7 +849,7 @@ static int ModifyTagChunk(PARSER *ap, char *tag_name, uint32_t deep, const char 
     return 0;
 }
 
-static int RemoveTagChunk(PARSER *ap, char *tag_name, uint32_t deep, int32_t *extra_size)
+static int RemoveTagChunk(PARSER *ap, char *tag_name, char *parent_tag, uint32_t deep, int32_t *extra_size)
 {
     XMLCONTENTCHUNK *target_start = NULL;
     uint32_t name;
@@ -859,7 +866,7 @@ static int RemoveTagChunk(PARSER *ap, char *tag_name, uint32_t deep, int32_t *ex
         return -1;
     }
 
-    target_start = FindTagStartChunk(ap, tag_name, deep);
+    target_start = FindTagStartChunk(ap, tag_name, parent_tag, deep);
     if (target_start == NULL)
     {
         return -1;
@@ -923,11 +930,11 @@ static int HandleTagChunk(PARSER *ap, OPTIONS *options, int32_t *extra_size)
     switch (options->mode)
     {
     case MODE_ADD:
-        return AddTagChunk(ap, options->tag_name, options->deep, options->count, extra_size);
+        return AddTagChunk(ap, options->tag_name, options->parent_tag, options->deep, options->count, extra_size);
     case MODE_MODIFY:
-        return ModifyTagChunk(ap, options->tag_name, options->deep, options->new_tag_name, extra_size);
+        return ModifyTagChunk(ap, options->tag_name, options->parent_tag, options->deep, options->new_tag_name, extra_size);
     case MODE_REMOVE:
-        return RemoveTagChunk(ap, options->tag_name, options->deep, extra_size);
+        return RemoveTagChunk(ap, options->tag_name, options->parent_tag, options->deep, extra_size);
     default:
         return -1;
     }
@@ -969,8 +976,6 @@ int HandleAXML(PARSER *ap, OPTIONS *options)
 	}
 
 	RebuildAXML(ap, &buf);
-	//printf("buf size: %x\n", buf.cur);
-	//printf("ap size: %x\n", ap->header->size);
 
     fp = fopen(options->output_file, "wb");
 	if (fp == NULL)
