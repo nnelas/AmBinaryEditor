@@ -8,7 +8,7 @@ AmBinaryEditor can add any element on AndroidManifest without decompiling/compil
 
 - Assuming that you have `gcc` on your machine:
 ```
-$ make release
+$ make compile
 ```
 
 ## Usage
