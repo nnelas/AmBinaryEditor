@@ -352,15 +352,11 @@ static XMLCONTENTCHUNK *FindTagStartChunk(PARSER *ap, char *name, char *parent_t
 	XMLCONTENTCHUNK *root = ap->xmlcontent_chunk;
 	XMLCONTENTCHUNK *node = root;
 	XMLCONTENTCHUNK *target = NULL;
-	while (node)
-	{
-        if (node->chunk_type == CHUNK_STARTTAG)
-        {
-            if (strcmp((const char *)sc->strings[node->start_tag_chunk->name], name) == 0)
-            {
+	while (node) {
+        if (node->chunk_type == CHUNK_STARTTAG) {
+            if (strcmp((const char *)sc->strings[node->start_tag_chunk->name], name) == 0) {
                 deep--;
-                if (deep == 0)
-                {
+                if (deep == 0) {
                     target = node;
                     break;
                 }
@@ -369,8 +365,7 @@ static XMLCONTENTCHUNK *FindTagStartChunk(PARSER *ap, char *name, char *parent_t
         node = node->child;
 	}
 
-	if (deep != 0 || target == NULL)
-	{
+	if (deep != 0 || target == NULL) {
         fprintf(stderr, "ERROR: tag_name: '%s' does not exist.\n", name);
         return NULL;
 	}
@@ -391,7 +386,6 @@ static XMLCONTENTCHUNK *FindTagStartChunkWithName(PARSER *manifest_parser, char 
             	attribute_list = node->start_tag_chunk->attr;
             	// fetches only first attribute. more elements with more than one attribute, needs memory managment improvements
             	if (strcmp((const char *)sc->strings[attribute_list->string], attr_value) == 0) {
-            		printf("found %s\n", attr_value);
             		free(attribute_list);
 	                target = node;
 					break;
@@ -400,8 +394,6 @@ static XMLCONTENTCHUNK *FindTagStartChunkWithName(PARSER *manifest_parser, char 
         }
         node = node->child;
 	}
-
-	printf("%s\n", attribute_list);
 
 	if (target == NULL) {
         fprintf(stderr, "ERROR: tag_name: '%s' does not exist.\n", name);
