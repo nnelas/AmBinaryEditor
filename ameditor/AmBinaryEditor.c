@@ -384,22 +384,24 @@ static XMLCONTENTCHUNK *FindTagStartChunkWithName(PARSER *manifest_parser, char 
 	XMLCONTENTCHUNK *node = root;
 	XMLCONTENTCHUNK *target = NULL;
 	ATTRIBUTE *attribute_list = NULL;
+
 	while (node) {
         if (node->chunk_type == CHUNK_STARTTAG) {
             if (strcmp((const char *)sc->strings[node->start_tag_chunk->name], name) == 0) {
             	attribute_list = node->start_tag_chunk->attr;
-            	while (attribute_list) {
-            		if (strcmp((const char *)sc->strings[attribute_list->string], attr_value) == 0) {
-	                    target = node;
-	                    free(attribute_list);
-	                    break;
-	                }
-	                attribute_list = attribute_list->next;
-            	}
+            	// fetches only first attribute. more elements with more than one attribute, needs memory managment improvements
+            	if (strcmp((const char *)sc->strings[attribute_list->string], attr_value) == 0) {
+            		printf("found %s\n", attr_value);
+            		free(attribute_list);
+	                target = node;
+					break;
+	            }
             }
         }
         node = node->child;
 	}
+
+	printf("%s\n", attribute_list);
 
 	if (target == NULL) {
         fprintf(stderr, "ERROR: tag_name: '%s' does not exist.\n", name);
