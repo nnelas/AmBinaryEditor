@@ -4,6 +4,7 @@ compile:
 
 	gcc -Wall -O2 -c ameditor/main.c -o build/main.o
 	gcc -Wall -O2 -c ameditor/options.c -o build/options.o
+	gcc -Wall -O2 -c ameditor/CopyUtils.c -o build/CopyUtils.o
 	gcc -Wall -O2 -c ameditor/AxmlParser.c -o build/AxmlParser.o
 	gcc -Wall -O2 -c ameditor/AmBinaryEditor.c -o build/AmBinaryEditor.o
 

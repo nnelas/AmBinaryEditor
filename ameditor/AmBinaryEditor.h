@@ -34,11 +34,4 @@ enum
 	ATTR_LASTINT	= 31,
 };
 
-typedef struct _BUFF
-{
-	char *data;
-	size_t size;
-	size_t cur;
-} BUFF;
-
 int HandleAXML(PARSER *ap, OPTIONS *options);
