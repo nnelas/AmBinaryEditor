@@ -191,7 +191,7 @@ int main(int argc, char *argv[])
         argv += 1;
         if (!argc)
         {
-            fprintf(stderr, "ERROR: No argument supplied for '--add' option.\n");
+            fprintf(stderr, "ERROR: No argument supplied for '--modify' option.\n");
             want_usage = 1;
             goto bail;
         }
@@ -204,7 +204,7 @@ int main(int argc, char *argv[])
         argv += 1;
         if (!argc)
         {
-            fprintf(stderr, "ERROR: No argument supplied for '--add' option.\n");
+            fprintf(stderr, "ERROR: No argument supplied for '--remove' option.\n");
             want_usage = 1;
             goto bail;
         }
@@ -301,6 +301,17 @@ int main(int argc, char *argv[])
                         goto bail;
                     }
                     strncpy(options->output_file, argv[0], 128);
+                    break;
+                case 'v':
+                    argc--;
+                    argv++;
+                    if (!argc)
+                    {
+                        fprintf(stderr, "ERROR: No argument supplied for '-v' option.\n");
+                        want_usage = 1;
+                        goto bail;
+                    }
+                    strncpy(options->attr_value, argv[0], 128);
                     break;
                 default:
                     fprintf(stderr, "ERROR: Unknown flag '-%c'.\n", *cp);

@@ -378,6 +378,37 @@ static XMLCONTENTCHUNK *FindTagStartChunk(PARSER *ap, char *name, char *parent_t
 	return target;
 }
 
+static XMLCONTENTCHUNK *FindTagStartChunkWithName(PARSER *manifest_parser, char *name, char *attr_value) {
+	STRING_CHUNK *sc = manifest_parser->string_chunk;
+	XMLCONTENTCHUNK *root = manifest_parser->xmlcontent_chunk;
+	XMLCONTENTCHUNK *node = root;
+	XMLCONTENTCHUNK *target = NULL;
+	ATTRIBUTE *attribute_list = NULL;
+	while (node) {
+        if (node->chunk_type == CHUNK_STARTTAG) {
+            if (strcmp((const char *)sc->strings[node->start_tag_chunk->name], name) == 0) {
+            	attribute_list = node->start_tag_chunk->attr;
+            	while (attribute_list) {
+            		if (strcmp((const char *)sc->strings[attribute_list->string], attr_value) == 0) {
+	                    target = node;
+	                    free(attribute_list);
+	                    break;
+	                }
+	                attribute_list = attribute_list->next;
+            	}
+            }
+        }
+        node = node->child;
+	}
+
+	if (target == NULL) {
+        fprintf(stderr, "ERROR: tag_name: '%s' does not exist.\n", name);
+        return NULL;
+	}
+
+	return target;
+}
+
 static int InitAttribute(PARSER *ap, ATTRIBUTE *attr, const char *name, uint32_t type, char *value,
     uint32_t resource_id, int flag, int32_t *extra_size)
 {
@@ -646,48 +677,46 @@ static int ModifyAttribute(PARSER *ap, char *tag_name, char *parent_tag, uint32_
     return 0;
 }
 
-static int RemoveAttribute(PARSER *ap, char *tag_name, char *parent_tag, uint32_t deep, uint32_t attr_type, const char *attr_name,
-    char *attr_value, uint32_t resource_id, int32_t *extra_size)
-{
+static int RemoveAttribute(PARSER *manifest_parser, char *tag_name, const char *attr_name, char *attr_value, int32_t *extra_size) {
     XMLCONTENTCHUNK *target = NULL;
-    STRING_CHUNK *sc = ap->string_chunk;
-    ATTRIBUTE *list = NULL;
-    if (tag_name == NULL || deep < 0 || attr_name == NULL || strlen(attr_name) <= 0)
+    STRING_CHUNK *sc = manifest_parser->string_chunk;
+    ATTRIBUTE *attribute_list = NULL;
+    if (tag_name == NULL|| attr_name == NULL || strlen(attr_name) <= 0)
     {
         fprintf(stderr, "ERROR: Illegal parameters.\n");
         return -1;
     }
 
-    target = FindTagStartChunk(ap, tag_name, parent_tag, deep);
+    target = FindTagStartChunkWithName(manifest_parser, tag_name, attr_value);
     if (target == NULL)
     {
         return -1;
     }
-    list = target->start_tag_chunk->attr;
-    while (list)
+    attribute_list = target->start_tag_chunk->attr;
+    while (attribute_list)
     {
-        if (strcmp((const char *)sc->strings[list->name], attr_name) == 0)
+        if (strcmp((const char *)sc->strings[attribute_list->name], attr_name) == 0 && strcmp((const char *)sc->strings[attribute_list->string], attr_value) == 0)
         {
-            if (list->prev == NULL)
+            if (attribute_list->prev == NULL)
             {
-                target->start_tag_chunk->attr = list->next;
+                target->start_tag_chunk->attr = attribute_list->next;
                 target->start_tag_chunk->attr->prev = NULL;
             }
-            else if (list->next == NULL)
+            else if (attribute_list->next == NULL)
             {
-                list->prev->next = NULL;
+                attribute_list->prev->next = NULL;
             }
             else
             {
-                list->prev->next = list->next;
-                list->next->prev = list->prev;
+                attribute_list->prev->next = attribute_list->next;
+                attribute_list->next->prev = attribute_list->prev;
             }
-            free(list);
+            free(attribute_list);
             target->start_tag_chunk->attr_count -= 1;
             target->chunk_size -= 5 * sizeof(uint32_t);
             break;
         }
-        list = list->next;
+        attribute_list = attribute_list->next;
     }
 
     *extra_size -= 5 * sizeof(uint32_t);
@@ -706,8 +735,7 @@ static int HandleAttribute(PARSER *ap, OPTIONS *options, int32_t *extra_size)
         return ModifyAttribute(ap, options->tag_name, options->parent_tag, options->deep, options->attr_type, options->attr_name,
         options->attr_value, options->resource_id, extra_size);
     case MODE_REMOVE:
-        return RemoveAttribute(ap, options->tag_name, options->parent_tag, options->deep, options->attr_type, options->attr_name,
-        options->attr_value, options->resource_id, extra_size);
+        return RemoveAttribute(ap, options->tag_name, options->attr_name, options->attr_value, extra_size);
     default:
         return -1;
     }
@@ -849,24 +877,23 @@ static int ModifyTagChunk(PARSER *ap, char *tag_name, char *parent_tag, uint32_t
     return 0;
 }
 
-static int RemoveTagChunk(PARSER *ap, char *tag_name, char *parent_tag, uint32_t deep, int32_t *extra_size)
-{
+static int RemoveTagChunk(PARSER *manifest_parser, char *tag_name, char *attr_value, int32_t *extra_size) {
     XMLCONTENTCHUNK *target_start = NULL;
     uint32_t name;
-    STRING_CHUNK *sc = ap->string_chunk;
+    STRING_CHUNK *sc = manifest_parser->string_chunk;
     XMLCONTENTCHUNK *node = NULL;
     XMLCONTENTCHUNK *target_end = NULL;
     ATTRIBUTE *list = NULL;
     ATTRIBUTE *attr = NULL;
     int degree = 0;
 
-    if (tag_name == NULL || deep < 0)
+    if (tag_name == NULL || attr_value == NULL)
     {
         fprintf(stderr, "ERROR: Illegal parameters.\n");
         return -1;
     }
+    target_start = FindTagStartChunkWithName(manifest_parser, tag_name, attr_value);
 
-    target_start = FindTagStartChunk(ap, tag_name, parent_tag, deep);
     if (target_start == NULL)
     {
         return -1;
@@ -925,18 +952,16 @@ static int RemoveTagChunk(PARSER *ap, char *tag_name, char *parent_tag, uint32_t
     return 0;
 }
 
-static int HandleTagChunk(PARSER *ap, OPTIONS *options, int32_t *extra_size)
-{
-    switch (options->mode)
-    {
-    case MODE_ADD:
-        return AddTagChunk(ap, options->tag_name, options->parent_tag, options->deep, options->count, extra_size);
-    case MODE_MODIFY:
-        return ModifyTagChunk(ap, options->tag_name, options->parent_tag, options->deep, options->new_tag_name, extra_size);
-    case MODE_REMOVE:
-        return RemoveTagChunk(ap, options->tag_name, options->parent_tag, options->deep, extra_size);
-    default:
-        return -1;
+static int HandleTagChunk(PARSER *ap, OPTIONS *options, int32_t *extra_size) {
+    switch (options->mode) {
+	    case MODE_ADD:
+	        return AddTagChunk(ap, options->tag_name, options->parent_tag, options->deep, options->count, extra_size);
+	    case MODE_MODIFY:
+	        return ModifyTagChunk(ap, options->tag_name, options->parent_tag, options->deep, options->new_tag_name, extra_size);
+	    case MODE_REMOVE:
+	        return RemoveTagChunk(ap, options->tag_name, options->attr_value, extra_size);
+	    default:
+	        return -1;
     }
 }
 
