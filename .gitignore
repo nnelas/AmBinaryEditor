@@ -83,4 +83,6 @@ dkms.conf
 # Ignore all local history of files
 .history
 
+.idea
+.project
 # End of https://www.gitignore.io/api/c,linux,visualstudiocode

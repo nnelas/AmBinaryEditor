@@ -5,21 +5,18 @@
 
 #endif
 
-typedef enum _MODE
-{
+typedef enum _MODE {
     MODE_ADD = 0,
     MODE_MODIFY,
     MODE_REMOVE,
 } MODE;
 
-typedef enum _COMMAND
-{
+typedef enum _COMMAND {
     COMMAND_TAG = 0,
     COMMAND_ATTR,
 } COMMAND;
 
-typedef struct _OPTIONS
-{
+typedef struct _OPTIONS {
     int command;
 
     int mode;
@@ -37,6 +34,6 @@ typedef struct _OPTIONS
 
     char input_file[128];
     char output_file[128];
-}OPTIONS;
+} OPTIONS;
 
 void Usage(void);
