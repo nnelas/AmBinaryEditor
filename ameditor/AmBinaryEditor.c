@@ -259,14 +259,17 @@ static XMLCONTENTCHUNK *FindTagStartChunk(PARSER *ap, char *name, char *parent_t
         if (node->chunk_type == CHUNK_STARTTAG) {
             if (strcmp((const char *) sc->strings[node->start_tag_chunk->name], name) == 0) {
                 printf("Found tag with name: '%s'\n", name);
-                target = node;
-                break;
+                deep--;
+                if (deep == 0) {
+                    target = node;
+                    break;
+                }
             }
         }
         node = node->child;
     }
 
-    if (target == NULL) {
+    if (deep != 0 || target == NULL) {
         fprintf(stderr, "ERROR: tag_name: '%s' does not exist.\n", name);
         return NULL;
     }
@@ -413,9 +416,8 @@ static int InitAttribute(PARSER *ap, ATTRIBUTE *attr, const char *name, uint32_t
     return 0;
 }
 
-static int
-AddAttribute(PARSER *ap, char *tag_name, char *parent_tag, uint32_t deep, uint32_t attr_type, const char *attr_name,
-             char *attr_value, uint32_t resource_id, int32_t *extra_size) {
+static int AddAttribute(PARSER *ap, char *tag_name, char *parent_tag, uint32_t deep, uint32_t attr_type,
+                        const char *attr_name, char *attr_value, uint32_t resource_id, int32_t *extra_size) {
     ATTRIBUTE *attr = NULL;
     XMLCONTENTCHUNK *target = NULL;
     ATTRIBUTE *list = NULL;
@@ -456,9 +458,8 @@ AddAttribute(PARSER *ap, char *tag_name, char *parent_tag, uint32_t deep, uint32
     return 0;
 }
 
-static int
-ModifyAttribute(PARSER *ap, char *tag_name, char *parent_tag, uint32_t deep, uint32_t attr_type, const char *attr_name,
-                char *attr_value, uint32_t resource_id, int32_t *extra_size) {
+static int ModifyAttribute(PARSER *ap, char *tag_name, char *parent_tag, uint32_t deep, uint32_t attr_type,
+                           const char *attr_name, char *attr_value, uint32_t resource_id, int32_t *extra_size) {
     ATTRIBUTE *attr = NULL;
     XMLCONTENTCHUNK *target = NULL;
     ATTRIBUTE *list = NULL;
@@ -498,8 +499,8 @@ ModifyAttribute(PARSER *ap, char *tag_name, char *parent_tag, uint32_t deep, uin
     return 0;
 }
 
-static int
-RemoveAttribute(PARSER *manifest_parser, char *tag_name, const char *attr_name, char *attr_value, int32_t *extra_size) {
+static int RemoveAttribute(PARSER *manifest_parser, char *tag_name, const char *attr_name, char *attr_value,
+                           int32_t *extra_size) {
     XMLCONTENTCHUNK *target = NULL;
     STRING_CHUNK *sc = manifest_parser->string_chunk;
     ATTRIBUTE *attribute_list = NULL;
@@ -555,8 +556,8 @@ static int HandleAttribute(PARSER *ap, OPTIONS *options, int32_t *extra_size) {
     }
 }
 
-static int
-AddTagChunk(PARSER *ap, char *tag_name, char *parent_tag, uint32_t deep, uint32_t count, int32_t *extra_size) {
+static int AddTagChunk(PARSER *ap, char *tag_name, char *parent_tag, uint32_t deep, uint32_t count,
+                       int32_t *extra_size) {
     STRING_CHUNK *sc = ap->string_chunk;
     XMLCONTENTCHUNK *root = ap->xmlcontent_chunk;
     XMLCONTENTCHUNK *node = root;
