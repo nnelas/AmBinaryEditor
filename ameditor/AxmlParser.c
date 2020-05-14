@@ -358,18 +358,16 @@ static int ParserXmlContentChunk(PARSER *ap) {
 }
 
 int ParserAxml(PARSER *ap, char *in_buf, size_t in_size) {
+    printf("Entered 'ParserAxml' method\n");
     ap->buf = (unsigned char *) in_buf;
     ap->size = in_size;
     ap->cur = 0;
 
-    ap->header = (HEADER *) malloc(sizeof(HEADER));
-    memset(ap->header, 0, sizeof(HEADER));
+    ap->header = (HEADER *) calloc(1, sizeof(HEADER));
 
-    ap->string_chunk = (STRING_CHUNK *) malloc(sizeof(STRING_CHUNK));
-    memset(ap->string_chunk, 0, sizeof(STRING_CHUNK));
+    ap->string_chunk = (STRING_CHUNK *) calloc(1, sizeof(STRING_CHUNK));
 
-    ap->resourceid_chunk = (RESOURCEID_CHUNK *) malloc(sizeof(RESOURCEID_CHUNK));
-    memset(ap->resourceid_chunk, 0, sizeof(RESOURCEID_CHUNK));
+    ap->resourceid_chunk = (RESOURCEID_CHUNK *) calloc(1, sizeof(RESOURCEID_CHUNK));
 
     if (ParseHeadChunk(ap) != 0 || ParseStringChunk(ap) != 0 || ParseResourceChunk(ap) != 0 ||
         ParserXmlContentChunk(ap) != 0) {

@@ -113,6 +113,7 @@ static int RebuildAXML(PARSER *ap, BUFF *buf) {
     CopyUint32(buf, ap->string_chunk->string_poll_offset);
     CopyUint32(buf, ap->string_chunk->style_poll_offset);
     for (i = 0; i < ap->string_chunk->string_count; i++) {
+        printf("%d\n", ap->string_chunk->string_offset[i]);
         CopyUint32(buf, ap->string_chunk->string_offset[i]);
     }
     for (i = 0; i < ap->string_chunk->style_count; i++) {
@@ -175,8 +176,11 @@ static uint32_t GetStringIndex(STRING_CHUNK *string_chunk, const char *str, int 
     unsigned char *out = NULL;
     size_t i;
 
+    printf("GetStringIndex for '%s'\n", str);
+
     for (i = 0; i < sc->string_count; i++) {
         if (strcmp(str, (const char *) sc->strings[i]) == 0) {
+            printf("Found '%s' on '%ld'\n", sc->strings[i], i);
             return i;
         }
     }
@@ -571,6 +575,7 @@ static int AddTagChunk(PARSER *ap, char *tag_name, char *parent_tag, uint32_t de
         return -1;
     }
 
+    printf("Finding parent node '%s' \n", parent_tag);
     while (node && deep) {
         if (node->chunk_type == CHUNK_STARTTAG) {
             if (strcmp((const char *) sc->strings[node->start_tag_chunk->name], parent_tag) == 0) {
@@ -740,6 +745,7 @@ static int RemoveTagChunk(PARSER *manifest_parser, char *tag_name, char *attr_va
 }
 
 static int HandleTagChunk(PARSER *ap, OPTIONS *options, int32_t *extra_size) {
+    printf("Entered 'HandleTagChunk' method\n");
     switch (options->mode) {
         case MODE_ADD:
             return AddTagChunk(ap, options->tag_name, options->parent_tag, options->deep, options->count, extra_size);
@@ -754,6 +760,7 @@ static int HandleTagChunk(PARSER *ap, OPTIONS *options, int32_t *extra_size) {
 }
 
 int HandleAXML(PARSER *ap, OPTIONS *options) {
+    printf("Entered 'HandleAXML' method\n");
     int32_t extra_size = 0;
     int result = 0;
     BUFF buf;

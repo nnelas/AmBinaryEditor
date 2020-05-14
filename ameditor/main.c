@@ -370,6 +370,7 @@ int main(int argc, char *argv[]) {
         goto bail;
     }
 
+    printf("Opening input_file...\n");
     fp = fopen(options->input_file, "rb");
     if (fp == NULL) {
         fprintf(stderr, "ERROR: open %s.\n", options->input_file);
@@ -380,6 +381,7 @@ int main(int argc, char *argv[]) {
     in_size = ftell(fp);
     fseek(fp, 0, SEEK_SET);
 
+    printf("Creating buffer...\n");
     in_buf = (char *) malloc(in_size * sizeof(char));
     if (fread(in_buf, 1, in_size, fp) != in_size) {
         fprintf(stderr, "Error: read %s.\n", options->input_file);
@@ -388,16 +390,19 @@ int main(int argc, char *argv[]) {
         goto bail;
     }
 
-    ap = (PARSER *) malloc(sizeof(PARSER));
-    memset(ap, 0, sizeof(PARSER));
+    printf("Creating AxmlParser...\n");
+    ap = (PARSER *) calloc(1, sizeof(PARSER));
+    printf("Created 'ap' with calloc\n");
     if (ParserAxml(ap, in_buf, in_size) == -1) {
         fprintf(stderr, "Error: axml parser.\n");
         result = -1;
         fclose(fp);
         goto bail;
     }
+    printf("Closing 'fp'\n");
     fclose(fp);
 
+    printf("Starting AmBinaryEditor operation...\n");
     result = HandleCommand(ap, options);
 
     bail:
