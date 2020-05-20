@@ -113,7 +113,6 @@ static int RebuildAXML(PARSER *ap, BUFF *buf) {
     CopyUint32(buf, ap->string_chunk->string_poll_offset);
     CopyUint32(buf, ap->string_chunk->style_poll_offset);
     for (i = 0; i < ap->string_chunk->string_count; i++) {
-        printf("%d\n", ap->string_chunk->string_offset[i]);
         CopyUint32(buf, ap->string_chunk->string_offset[i]);
     }
     for (i = 0; i < ap->string_chunk->style_count; i++) {
@@ -234,7 +233,8 @@ static uint32_t GetStringIndex(STRING_CHUNK *string_chunk, const char *str, int 
     return sc->string_count - 1;
 }
 
-static int HandleResourceChunk(RESOURCEID_CHUNK *resourceid_chunk, uint32_t offset, uint32_t resource_id, int32_t *extra_size) {
+static int
+HandleResourceChunk(RESOURCEID_CHUNK *resourceid_chunk, uint32_t offset, uint32_t resource_id, int32_t *extra_size) {
     if (offset + 1 <= resourceid_chunk->resourceids_count) {
         resourceid_chunk->resourceids[offset] = resource_id;
     } else {
@@ -309,6 +309,13 @@ static XMLCONTENTCHUNK *FindTagStartChunkWithName(PARSER *manifest_parser, char 
     }
 
     return target;
+}
+
+static uint32_t ValueFromString(PARSER *ap, const char *name) {
+    int32_t *extra_size = 0;
+    int flag = 1;
+    STRING_CHUNK *sc = ap->string_chunk;
+    return GetStringIndex(sc, name, flag, extra_size);
 }
 
 static int InitAttribute(PARSER *ap, ATTRIBUTE *attr, const char *name, uint32_t type, char *value,
@@ -425,22 +432,38 @@ static int AddAttribute(PARSER *ap, char *tag_name, char *parent_tag, uint32_t d
     ATTRIBUTE *attr = NULL;
     XMLCONTENTCHUNK *target = NULL;
     ATTRIBUTE *list = NULL;
+    int index = 0;
+    short hasNameInApplication = 0;
+
     if (tag_name == NULL || deep < 0 || attr_name == NULL || attr_value == NULL || strlen(attr_name) <= 0) {
         fprintf(stderr, "ERROR: Illegal parameters.\n");
         return -1;
     }
     printf("Adding attribute '%s:%s' on element '%s'\n", attr_name, attr_value, tag_name);
+
     attr = (ATTRIBUTE *) malloc(sizeof(ATTRIBUTE));
     memset(attr, 0, sizeof(ATTRIBUTE));
     if (InitAttribute(ap, attr, attr_name, attr_type, attr_value, resource_id, 1, extra_size) == -1) {
         free(attr);
         return -1;
     }
+    uint32_t themeValue = ValueFromString(ap, "theme");
+    uint32_t labelValue = ValueFromString(ap, "label");
+    uint32_t iconValue = ValueFromString(ap, "icon");
+    uint32_t nameValue = ValueFromString(ap, "name");
+
+    printf("1.4 - theme: %d \n labelValue: %d \n iconValue: %d \n nameValue: %d \n", themeValue, labelValue, iconValue,
+           nameValue);
+
+    if (strcmp(tag_name, "application") == 0 && strcmp(attr_name, "name") == 0) {
+        hasNameInApplication = 1;
+    }
 
     target = FindTagStartChunk(ap, tag_name, parent_tag, deep);
     if (target == NULL) {
         return -1;
     }
+
     list = target->start_tag_chunk->attr;
     if (list == NULL) {
         target->start_tag_chunk->attr = attr;
@@ -449,16 +472,29 @@ static int AddAttribute(PARSER *ap, char *tag_name, char *parent_tag, uint32_t d
             if (list->next == NULL) {
                 break;
             }
+            if (hasNameInApplication == 1) {
+                if (index <= 3) {
+                    if (list->name != themeValue && list->name != labelValue
+                        && list->name != iconValue) {
+                        ATTRIBUTE *aux_attr = list;
+                        attr->next = aux_attr;
+                        aux_attr->prev->next = attr;
+                    }
+                    index++;
+                }
+            }
             list = list->next;
         }
-        list->next = attr;
-        attr->prev = list;
+        if (hasNameInApplication == 0) {
+            list->next = attr;
+            attr->prev = list;
+        }
     }
+
     target->chunk_size += 5 * sizeof(uint32_t);
     target->start_tag_chunk->attr_count += 1;
 
     *extra_size += 5 * sizeof(uint32_t);
-
     return 0;
 }
 
@@ -748,7 +784,8 @@ static int HandleTagChunk(PARSER *ap, OPTIONS *options, int32_t *extra_size) {
     printf("Entered 'HandleTagChunk' method\n");
     switch (options->mode) {
         case MODE_ADD:
-            return AddTagChunk(ap, options->tag_name, options->parent_tag, options->deep, options->count, extra_size);
+            return AddTagChunk(ap, options->tag_name, options->parent_tag, options->deep, options->count,
+                               extra_size);
         case MODE_MODIFY:
             return ModifyTagChunk(ap, options->tag_name, options->parent_tag, options->deep, options->new_tag_name,
                                   extra_size);
