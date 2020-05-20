@@ -38,6 +38,11 @@ $ ./ameditor tag --add uses-permission -p manifest -d 1 -c 0 -i <manifest_path> 
 $ ./ameditor attr --add uses-permission -p manifest -d 1 -n name -t 3 -v com.nunonelas.test.permission -i <manifest_path> -o <manifest_path>
 ```
 
+-Change Version Name
+```
+$ ./ameditor attr --modify manifest -d 1 -n versionName -t 3 -v <new_version_name> -i <manifest_path> -o <manifest_path>
+```
+
 ## More info
 
 Original documentation here:
