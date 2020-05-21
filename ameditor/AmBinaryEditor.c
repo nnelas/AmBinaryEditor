@@ -432,7 +432,6 @@ static int AddAttribute(PARSER *ap, char *tag_name, char *parent_tag, uint32_t d
     ATTRIBUTE *attr = NULL;
     XMLCONTENTCHUNK *target = NULL;
     ATTRIBUTE *list = NULL;
-    int index = 0;
     short hasNameInApplication = 0;
 
     if (tag_name == NULL || deep < 0 || attr_name == NULL || attr_value == NULL || strlen(attr_name) <= 0) {
@@ -455,8 +454,16 @@ static int AddAttribute(PARSER *ap, char *tag_name, char *parent_tag, uint32_t d
     printf("1.4 - theme: %d \n labelValue: %d \n iconValue: %d \n nameValue: %d \n", themeValue, labelValue, iconValue,
            nameValue);
 
+    int indexToInsert = 0;
     if (strcmp(tag_name, "application") == 0 && strcmp(attr_name, "name") == 0) {
         hasNameInApplication = 1;
+
+        if (themeValue != -1)
+            indexToInsert++;
+        if (labelValue != -1)
+            indexToInsert++;
+        if (iconValue != -1)
+            indexToInsert++;
     }
 
     target = FindTagStartChunk(ap, tag_name, parent_tag, deep);
@@ -465,31 +472,33 @@ static int AddAttribute(PARSER *ap, char *tag_name, char *parent_tag, uint32_t d
     }
 
     list = target->start_tag_chunk->attr;
-    if (list == NULL) {
-        target->start_tag_chunk->attr = attr;
+
+    if (hasNameInApplication == 1) {
+        // while (indexToInsert >= 0) {
+        //    list = list->next;
+        //    indexToInsert--;     
+        // }
+        list = list + indexToInsert;
+        ATTRIBUTE *aux_attr = list;
+        attr->next = aux_attr->next;
+        aux_attr->next = attr;
+        attr->next->prev = attr;
     } else {
-        while (1) {
-            if (list->next == NULL) {
-                break;
-            }
-            if (hasNameInApplication == 1) {
-                if (index <= 3) {
-                    if (list->name != themeValue && list->name != labelValue
-                        && list->name != iconValue) {
-                        ATTRIBUTE *aux_attr = list;
-                        attr->next = aux_attr;
-                        aux_attr->prev->next = attr;
-                    }
-                    index++;
+        if (list == NULL) {
+            target->start_tag_chunk->attr = attr;
+        } else {
+            while (1) {
+                if (list->next == NULL) {
+                    break;
                 }
+
+                list = list->next;
             }
-            list = list->next;
-        }
-        if (hasNameInApplication == 0) {
             list->next = attr;
             attr->prev = list;
         }
     }
+
 
     target->chunk_size += 5 * sizeof(uint32_t);
     target->start_tag_chunk->attr_count += 1;
