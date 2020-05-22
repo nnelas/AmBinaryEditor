@@ -311,13 +311,6 @@ static XMLCONTENTCHUNK *FindTagStartChunkWithName(PARSER *manifest_parser, char 
     return target;
 }
 
-static uint32_t ValueFromString(PARSER *ap, const char *name) {
-    int32_t *extra_size = 0;
-    int flag = 1;
-    STRING_CHUNK *sc = ap->string_chunk;
-    return GetStringIndex(sc, name, flag, extra_size);
-}
-
 static int InitAttribute(PARSER *ap, ATTRIBUTE *attr, const char *name, uint32_t type, char *value,
                          uint32_t resource_id, int flag, int32_t *extra_size) {
     //static float RadixTable[] = {0.00390625f, 3.051758E-005f, 1.192093E-007f, 4.656613E-010f};
@@ -427,12 +420,27 @@ static int InitAttribute(PARSER *ap, ATTRIBUTE *attr, const char *name, uint32_t
     return 0;
 }
 
+static int DoesAttributeExist(const char* attr_name, ATTRIBUTE *attrs, int attrs_count, STRING_CHUNK *sc) {
+    ATTRIBUTE* current = attrs;
+    const char* current_attribute_name = NULL;
+
+    for(int i = 0; i < attrs_count; i++) {
+        current_attribute_name = (const char*)sc->strings[current->name];
+        if (strcmp(current_attribute_name, attr_name) == 0) {
+            return 1;
+        }
+        current = current->next;
+    }
+
+    return 0;
+}
+
 static int AddAttribute(PARSER *ap, char *tag_name, char *parent_tag, uint32_t deep, uint32_t attr_type,
                         const char *attr_name, char *attr_value, uint32_t resource_id, int32_t *extra_size) {
     ATTRIBUTE *attr = NULL;
     XMLCONTENTCHUNK *target = NULL;
     ATTRIBUTE *list = NULL;
-    short hasNameInApplication = 0;
+    short shouldInsertNameInApp = 0;
 
     if (tag_name == NULL || deep < 0 || attr_name == NULL || attr_value == NULL || strlen(attr_name) <= 0) {
         fprintf(stderr, "ERROR: Illegal parameters.\n");
@@ -446,25 +454,6 @@ static int AddAttribute(PARSER *ap, char *tag_name, char *parent_tag, uint32_t d
         free(attr);
         return -1;
     }
-    uint32_t themeValue = ValueFromString(ap, "theme");
-    uint32_t labelValue = ValueFromString(ap, "label");
-    uint32_t iconValue = ValueFromString(ap, "icon");
-    uint32_t nameValue = ValueFromString(ap, "name");
-
-    printf("1.4 - theme: %d \n labelValue: %d \n iconValue: %d \n nameValue: %d \n", themeValue, labelValue, iconValue,
-           nameValue);
-
-    int indexToInsert = 0;
-    if (strcmp(tag_name, "application") == 0 && strcmp(attr_name, "name") == 0) {
-        hasNameInApplication = 1;
-
-        if (themeValue != -1)
-            indexToInsert++;
-        if (labelValue != -1)
-            indexToInsert++;
-        if (iconValue != -1)
-            indexToInsert++;
-    }
 
     target = FindTagStartChunk(ap, tag_name, parent_tag, deep);
     if (target == NULL) {
@@ -473,12 +462,34 @@ static int AddAttribute(PARSER *ap, char *tag_name, char *parent_tag, uint32_t d
 
     list = target->start_tag_chunk->attr;
 
-    if (hasNameInApplication == 1) {
-        // while (indexToInsert >= 0) {
-        //    list = list->next;
-        //    indexToInsert--;     
-        // }
-        list = list + indexToInsert;
+    STRING_CHUNK* sc = ap->string_chunk;
+
+    int themeValue = DoesAttributeExist("theme", list, target->start_tag_chunk->attr_count, sc);
+    int labelValue = DoesAttributeExist("label", list, target->start_tag_chunk->attr_count, sc);
+    int iconValue = DoesAttributeExist("icon", list, target->start_tag_chunk->attr_count, sc);
+    int nameValue = DoesAttributeExist("name", list, target->start_tag_chunk->attr_count, sc);
+
+    printf("1.4 - theme: %d \n labelValue: %d \n iconValue: %d \n nameValue: %d \n", themeValue, labelValue, iconValue,
+           nameValue);
+
+    int indexToInsert = 0;
+    if (strcmp(tag_name, "application") == 0 && strcmp(attr_name, "name") == 0) {
+        shouldInsertNameInApp = 1;
+
+        if (themeValue != 0)
+            indexToInsert++;
+        if (labelValue != 0)
+            indexToInsert++;
+        if (iconValue != 0)
+            indexToInsert++;
+    }
+
+    if (shouldInsertNameInApp == 1) {
+        while (indexToInsert > 0) {
+            list = list->next;
+            indexToInsert--;     
+        }
+
         ATTRIBUTE *aux_attr = list;
         attr->next = aux_attr->next;
         aux_attr->next = attr;
