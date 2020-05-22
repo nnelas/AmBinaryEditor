@@ -113,7 +113,6 @@ static int RebuildAXML(PARSER *ap, BUFF *buf) {
     CopyUint32(buf, ap->string_chunk->string_poll_offset);
     CopyUint32(buf, ap->string_chunk->style_poll_offset);
     for (i = 0; i < ap->string_chunk->string_count; i++) {
-        printf("%d\n", ap->string_chunk->string_offset[i]);
         CopyUint32(buf, ap->string_chunk->string_offset[i]);
     }
     for (i = 0; i < ap->string_chunk->style_count; i++) {
@@ -234,7 +233,8 @@ static uint32_t GetStringIndex(STRING_CHUNK *string_chunk, const char *str, int 
     return sc->string_count - 1;
 }
 
-static int HandleResourceChunk(RESOURCEID_CHUNK *resourceid_chunk, uint32_t offset, uint32_t resource_id, int32_t *extra_size) {
+static int
+HandleResourceChunk(RESOURCEID_CHUNK *resourceid_chunk, uint32_t offset, uint32_t resource_id, int32_t *extra_size) {
     if (offset + 1 <= resourceid_chunk->resourceids_count) {
         resourceid_chunk->resourceids[offset] = resource_id;
     } else {
@@ -420,16 +420,34 @@ static int InitAttribute(PARSER *ap, ATTRIBUTE *attr, const char *name, uint32_t
     return 0;
 }
 
+static int DoesAttributeExist(const char* attr_name, ATTRIBUTE *attrs, int attrs_count, STRING_CHUNK *sc) {
+    ATTRIBUTE* current = attrs;
+    const char* current_attribute_name = NULL;
+
+    for(int i = 0; i < attrs_count; i++) {
+        current_attribute_name = (const char*)sc->strings[current->name];
+        if (strcmp(current_attribute_name, attr_name) == 0) {
+            return 1;
+        }
+        current = current->next;
+    }
+
+    return 0;
+}
+
 static int AddAttribute(PARSER *ap, char *tag_name, char *parent_tag, uint32_t deep, uint32_t attr_type,
                         const char *attr_name, char *attr_value, uint32_t resource_id, int32_t *extra_size) {
     ATTRIBUTE *attr = NULL;
     XMLCONTENTCHUNK *target = NULL;
     ATTRIBUTE *list = NULL;
+    short shouldInsertNameInApp = 0;
+
     if (tag_name == NULL || deep < 0 || attr_name == NULL || attr_value == NULL || strlen(attr_name) <= 0) {
         fprintf(stderr, "ERROR: Illegal parameters.\n");
         return -1;
     }
     printf("Adding attribute '%s:%s' on element '%s'\n", attr_name, attr_value, tag_name);
+
     attr = (ATTRIBUTE *) malloc(sizeof(ATTRIBUTE));
     memset(attr, 0, sizeof(ATTRIBUTE));
     if (InitAttribute(ap, attr, attr_name, attr_type, attr_value, resource_id, 1, extra_size) == -1) {
@@ -441,24 +459,62 @@ static int AddAttribute(PARSER *ap, char *tag_name, char *parent_tag, uint32_t d
     if (target == NULL) {
         return -1;
     }
+
     list = target->start_tag_chunk->attr;
-    if (list == NULL) {
-        target->start_tag_chunk->attr = attr;
-    } else {
-        while (1) {
-            if (list->next == NULL) {
-                break;
-            }
-            list = list->next;
-        }
-        list->next = attr;
-        attr->prev = list;
+
+    STRING_CHUNK* sc = ap->string_chunk;
+
+    int themeValue = DoesAttributeExist("theme", list, target->start_tag_chunk->attr_count, sc);
+    int labelValue = DoesAttributeExist("label", list, target->start_tag_chunk->attr_count, sc);
+    int iconValue = DoesAttributeExist("icon", list, target->start_tag_chunk->attr_count, sc);
+    int nameValue = DoesAttributeExist("name", list, target->start_tag_chunk->attr_count, sc);
+
+    printf("1.4 - theme: %d \n labelValue: %d \n iconValue: %d \n nameValue: %d \n", themeValue, labelValue, iconValue,
+           nameValue);
+
+    int indexToInsert = 0;
+    if (strcmp(tag_name, "application") == 0 && strcmp(attr_name, "name") == 0) {
+        shouldInsertNameInApp = 1;
+
+        if (themeValue != 0)
+            indexToInsert++;
+        if (labelValue != 0)
+            indexToInsert++;
+        if (iconValue != 0)
+            indexToInsert++;
     }
+
+    if (shouldInsertNameInApp == 1) {
+        while (indexToInsert > 0) {
+            list = list->next;
+            indexToInsert--;     
+        }
+
+        ATTRIBUTE *aux_attr = list;
+        attr->next = list;
+        attr->prev = list->next;
+        list->prev->next = attr;
+    } else {
+        if (list == NULL) {
+            target->start_tag_chunk->attr = attr;
+        } else {
+            while (1) {
+                if (list->next == NULL) {
+                    break;
+                }
+
+                list = list->next;
+            }
+            list->next = attr;
+            attr->prev = list;
+        }
+    }
+
+
     target->chunk_size += 5 * sizeof(uint32_t);
     target->start_tag_chunk->attr_count += 1;
 
     *extra_size += 5 * sizeof(uint32_t);
-
     return 0;
 }
 
@@ -748,7 +804,8 @@ static int HandleTagChunk(PARSER *ap, OPTIONS *options, int32_t *extra_size) {
     printf("Entered 'HandleTagChunk' method\n");
     switch (options->mode) {
         case MODE_ADD:
-            return AddTagChunk(ap, options->tag_name, options->parent_tag, options->deep, options->count, extra_size);
+            return AddTagChunk(ap, options->tag_name, options->parent_tag, options->deep, options->count,
+                               extra_size);
         case MODE_MODIFY:
             return ModifyTagChunk(ap, options->tag_name, options->parent_tag, options->deep, options->new_tag_name,
                                   extra_size);
