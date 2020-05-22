@@ -491,9 +491,9 @@ static int AddAttribute(PARSER *ap, char *tag_name, char *parent_tag, uint32_t d
         }
 
         ATTRIBUTE *aux_attr = list;
-        attr->next = aux_attr->next;
-        aux_attr->next = attr;
-        attr->next->prev = attr;
+        attr->next = list;
+        attr->prev = list->next;
+        list->prev->next = attr;
     } else {
         if (list == NULL) {
             target->start_tag_chunk->attr = attr;
